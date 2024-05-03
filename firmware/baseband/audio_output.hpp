@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2014 Jared Boone, ShareBrained Technology, Inc.
  * Copyright (C) 2016 Furrtek
+ * Copyright (C) 2024 Mark Thompson
  *
  * This file is part of PortaPack.
  *
@@ -36,46 +37,51 @@
 #include <memory>
 
 class AudioOutput {
-public:
-	void configure(const bool do_proc);
-	
-	void configure(
-		const iir_biquad_config_t& hpf_config,
-		const iir_biquad_config_t& deemph_config = iir_config_passthrough,
-		const float squelch_threshold = 0.0f
-	);
+   public:
+    void configure(const bool do_proc);
 
-	void write(const buffer_s16_t& audio);
-	void write(const buffer_f32_t& audio);
+    void configure(
+        const iir_biquad_config_t& hpf_config,
+        const iir_biquad_config_t& deemph_config = iir_config_passthrough,
+        const float squelch_threshold = 0.0f);
 
-	void set_stream(std::unique_ptr<StreamInput> new_stream) {
-		stream = std::move(new_stream);
-	}
-	
-	bool is_squelched();
+    void write_unprocessed(const buffer_s16_t& audio);
+    void write(const buffer_s16_t& audio);
+    void write(const buffer_f32_t& audio);
 
-private:
-	static constexpr float k = 32768.0f;
-	static constexpr float ki = 1.0f / k;
+    void set_stream(std::unique_ptr<StreamInput> new_stream) {
+        stream = std::move(new_stream);
+    }
 
-	BlockDecimator<float, 32> block_buffer { 1 };	
+    bool is_squelched();
 
-	IIRBiquadFilter hpf { };
-	IIRBiquadFilter deemph { };
-	FMSquelch squelch { };
+   private:
+    static constexpr float k = 32768.0f;
+    static constexpr float ki = 1.0f / k;
 
-	std::unique_ptr<StreamInput> stream { };
+    BlockDecimator<int16_t, 32> block_buffer_s16{1};
+    BlockDecimator<float, 32> block_buffer{1};
 
-	AudioStatsCollector audio_stats { };
+    IIRBiquadFilter hpf{};
+    IIRBiquadFilter deemph{};
+    FMSquelch squelch{};
 
-	uint64_t audio_present_history = 0;
-	
-	bool audio_present = false;
-	bool do_processing = true;
+    std::unique_ptr<StreamInput> stream{};
 
-	void on_block(const buffer_f32_t& audio);
-	void fill_audio_buffer(const buffer_f32_t& audio, const bool send_to_fifo);
-	void feed_audio_stats(const buffer_f32_t& audio);
+    AudioStatsCollector audio_stats{};
+
+    uint64_t audio_present_history = 0;
+
+    bool audio_present = false;
+    bool do_processing = true;
+
+    void on_block(const buffer_f32_t& audio);
+
+    void fill_audio_buffer(const buffer_s16_t& audio, const bool send_to_fifo);
+    void fill_audio_buffer(const buffer_f32_t& audio, const bool send_to_fifo);
+
+    void feed_audio_stats(const buffer_s16_t& audio);
+    void feed_audio_stats(const buffer_f32_t& audio);
 };
 
-#endif/*__AUDIO_OUTPUT_H__*/
+#endif /*__AUDIO_OUTPUT_H__*/

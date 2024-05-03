@@ -2,6 +2,7 @@
  * Copyright (C) 2014 Jared Boone, ShareBrained Technology, Inc.
  * Copyright (C) 2016 Furrtek
  * Copyright (C) 2019 Elia Yehuda (z4ziggy)
+ * Copyright (C) 2024 u-foka
  *
  * This file is part of PortaPack.
  *
@@ -31,70 +32,84 @@
 #include "signal.hpp"
 
 #include <cstddef>
-#include <string>
 #include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+// file used for listing apps to hide from menu
+#define BLACKLIST u"/SETTINGS/blacklist"
 
 namespace ui {
 
 struct GridItem {
-	std::string text;
-	ui::Color color;
-	const Bitmap* bitmap;
-	std::function<void(void)> on_select;
+    std::string text;
+    ui::Color color;
+    const Bitmap* bitmap;
+    std::function<void(void)> on_select;
 
-	// TODO: Prevent default-constructed GridItems.
+    // TODO: Prevent default-constructed GridItems.
 };
 
+void load_blacklist();
+
 class BtnGridView : public View {
-public:
-	BtnGridView(Rect new_parent_rect = { 0, 0, 240, 304 }, bool keep_highlight = false);
+   public:
+    BtnGridView(Rect new_parent_rect = {0, 0, 240, 304}, bool keep_highlight = false);
 
-	~BtnGridView();
+    ~BtnGridView();
 
-	void add_items(std::initializer_list<GridItem> new_items);
-	void set_max_rows(int rows);
-	int rows();
-	void clear();
+    void add_items(std::initializer_list<GridItem> new_items);
+    void add_item(GridItem new_item);
+    void insert_item(GridItem new_item, uint8_t position);
+    void set_max_rows(int rows);
+    int rows();
+    void clear();
 
-	NewButton* item_view(size_t index) const;
+    NewButton* item_view(size_t index) const;
 
-	bool set_highlighted(int32_t new_value);
-	uint32_t highlighted_index();
+    bool set_highlighted(int32_t new_value);
+    uint32_t highlighted_index();
 
-	void set_parent_rect(const Rect new_parent_rect) override;
-	void set_arrow_enabled(bool new_value);
-	void on_focus() override;
-	void on_blur() override;
-	bool on_key(const KeyEvent event) override;
-	bool on_encoder(const EncoderEvent event) override;
+    void set_parent_rect(const Rect new_parent_rect) override;
+    void set_arrow_enabled(bool enabled);
+    void on_focus() override;
+    void on_blur() override;
+    void on_show() override;
+    void on_hide() override;
+    bool on_key(const KeyEvent event) override;
+    bool on_encoder(const EncoderEvent event) override;
+    bool blacklisted_app(GridItem new_item);
 
-private:
-	int rows_ { 3 };
-	void update_items();
-	void on_tick_second();
+   protected:
+    virtual void on_populate() = 0;
 
-	bool keep_highlight { false };
+   private:
+    int rows_{3};
+    void update_items();
+    void on_tick_second();
 
-	SignalToken signal_token_tick_second { };
-	std::vector<GridItem> menu_items { };
-	std::vector<NewButton*> menu_item_views { };
+    bool keep_highlight{false};
 
-	Image arrow_more {
-		{ 228, 320 - 8, 8, 8 },
-		&bitmap_more,
-		Color::white(),
-		Color::black()
-	};
+    SignalToken signal_token_tick_second{};
+    std::vector<GridItem> menu_items{};
+    std::vector<std::unique_ptr<NewButton>> menu_item_views{};
 
-	int button_w = 240 / rows_;
-	static constexpr int button_h = 48;
-	bool blink = false;
-	bool more = false;
-	size_t displayed_max { 0 };
-	size_t highlighted_item { 0 };
-	size_t offset { 0 };
+    Image arrow_more{
+        {228, 320 - 8, 8, 8},
+        &bitmap_more,
+        Color::white(),
+        Color::black()};
+
+    int button_w = 240 / rows_;
+    static constexpr int button_h = 48;
+    bool blink = false;
+    bool more = false;
+    size_t displayed_max{0};
+    size_t highlighted_item{0};
+    size_t offset{0};
 };
 
 } /* namespace ui */
 
-#endif/*__UI_BTNGRID_H__*/
+#endif /*__UI_BTNGRID_H__*/
